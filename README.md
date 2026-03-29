@@ -1,2 +1,2 @@
 # aetheria
-Determining cosmic dust compositions with AI
+Determining cosmic dust compositions with ANNs.
