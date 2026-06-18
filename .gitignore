@@ -1,5 +1,7 @@
 # Hide data
 data/
+results/
+models/
 
 # Hide virtual env
 .venv/
