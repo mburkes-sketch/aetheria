@@ -9,4 +9,7 @@ scikit-learn==1.8.0
 scipy==1.17.1
 six==1.17.0
 threadpoolctl==3.6.0
-h5py
+h5py>=3.10.0
+matplotlib>=3.8.0
+torch>=2.0.0
+skorch>=1.0.0

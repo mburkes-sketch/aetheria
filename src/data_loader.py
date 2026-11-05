@@ -6,6 +6,8 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from pathlib import Path
+import traceback
 
 # Use a non-interactive backend for plotting in CLI
 matplotlib.use('Agg')
@@ -14,12 +16,14 @@ matplotlib.use('Agg')
 # n = real part (scattering), k = imaginary part (absorption)
 MAT_TO_REF_IND = {
     "halley_dust": (1.98, 0.48),
+    "halley_like_dust": (1.98, 0.48),
     "am_silicate": (1.677, 0.0044),
     "amorphous_silicate": (1.677, 0.0044),
     "water_ice": (1.308, 0.000000143),
     "water__ice": (1.308, 0.000000143),
     "ice": (1.308, 0.000000143),
     "co2_ice": (1.41, 0.00000105),
+    "carbon_dioxide_ice": (1.41, 0.00000105),
     "pyroxene": (1.702, 0.0212),
     "iron_pyroxene": (1.702, 0.0212),
     "iron_rich_pyroxene": (1.702, 0.0212),
@@ -29,9 +33,11 @@ MAT_TO_REF_IND = {
     "amorphous__carbon": (2.14, 0.805),
     "pyrrhotite": (1.7, 1.86),
     "ir_olivine": (1.85, 0.00077),
+    "iron_rich_olivine": (1.85, 0.00077),
     "iron": (1.85, 0.00077), 
     "tholin_ice": (1.54, 0.0012),
-    "titan_tholins": (1.557, 0.0009)
+    "titan_tholins": (1.557, 0.0009),
+    "cosmic_organic_refractory": (1.98, 0.2677)
 }
 
 def parse_h5_file(file_path: pathlib.Path) -> pd.DataFrame:
@@ -43,21 +49,56 @@ def parse_h5_file(file_path: pathlib.Path) -> pd.DataFrame:
     stem = file_path.stem
     parts = stem.split('_')
     
-    # Filter out empty strings from double underscores and remove the last three suffix parts
-    useful_parts = [p for p in parts[:-3] if p]
     
-    # Logic to detect if size or particle count comes first in the naming convention
-    if useful_parts[-1][-4:] == 'size':
-        # Example: "01size" -> 0.1 microns
-        size = int(useful_parts[-1][:-4]) / 10
-        # Example: "8k" -> 8000 particles
-        particle_count = int(useful_parts[-2][:-1]) * 1000
+    if parts[-1] == "output":
+
+      # Filter out empty strings from double underscores and remove the last three suffix parts
+      useful_parts = [p for p in parts[:-3] if p]
+
+      # Logic to detect if size or particle count comes first in the naming convention
+      if useful_parts[-1][-4:] == 'size':
+          # Example: "01size" -> 0.1 microns
+          size = int(useful_parts[-1][:-4]) / 10
+          # Example: "8k" -> 8000 particles
+          particle_count = int(useful_parts[-2][:-1]) * 1000
+      else:
+          size = int(useful_parts[-2][:-4]) / 10
+          particle_count = int(useful_parts[-1][:-1]) * 1000
     else:
-        size = int(useful_parts[-2][:-4]) / 10
-        particle_count = int(useful_parts[-1][:-1]) * 1000
+      # Filter out empty strings from double underscores and remove the last three suffix parts
+      useful_parts = [p for p in parts[:-1] if p]
+      
+      # Logic to detect if size or particle count comes first in the naming convention
+      if useful_parts[-1][-4:] == 'size':
+          # Example: "01size" -> 0.1 microns
+          size = int(useful_parts[-1][:-4]) / 10
+          # Example: "8k" -> 8000 particles
+          particle_count = int(useful_parts[-2][:-1]) * 1000
+      else:
+          size = int(useful_parts[-2][:-4]) / 10
+          particle_count = int(useful_parts[-1][:-1]) * 1000
+
+    if size == 1.5 or size == .5:
+      size = size / 10
     
     # Everything before the size/count is treated as the material composition
     composition = "_".join(useful_parts[:-2])
+
+    # Normalize composition names to match .h5 conventions
+    norm_comp = {
+        "amorphous_carbon": "am_carbon",
+        "amorphous__carbon": "am_carbon",
+        "amorphous_silicate": "am_silicate",
+        "water_ice": "water_ice", 
+        "water__ice": "water_ice",
+        "ice": "water_ice",
+        "halley_like_dust": "halley_dust",
+        "carbon_dioxide_ice": "co2_ice",
+        "iron_rich_olivine": "ir_olivine",
+        "iron_rich_pyroxene": "ir_pyroxene",
+        "iron_pyroxene": "ir_pyroxene"
+    }
+    composition = norm_comp.get(composition, composition)
 
     df = pd.DataFrame()
 
@@ -108,7 +149,18 @@ def parse_h5_file(file_path: pathlib.Path) -> pd.DataFrame:
         df['particle_count'] = particle_count
         df['composition'] = composition
 
-    return df
+    function_df = pd.DataFrame({
+      'refractive_index_real': [MAT_TO_REF_IND[composition][0]],
+      'refractive_index_img': [MAT_TO_REF_IND[composition][1]],
+      'particle_radius': size,
+      'particle_count': particle_count,
+      'composition': composition,
+      'theta': [df['theta'].to_numpy()],
+      'S11': [df['S11'].to_numpy()],
+      'polarization': [df['polarization'].to_numpy()]
+    })
+
+    return df, function_df
 
 def parse_dat_file(file_path: pathlib.Path) -> pd.DataFrame:
     """
@@ -134,9 +186,16 @@ def parse_dat_file(file_path: pathlib.Path) -> pd.DataFrame:
     # Normalize composition names to match .h5 conventions
     norm_comp = {
         "amorphous_carbon": "am_carbon",
+        "amorphous__carbon": "am_carbon",
         "amorphous_silicate": "am_silicate",
         "water_ice": "water_ice", # already matches but for safety
-        "water__ice": "water_ice"
+        "water__ice": "water_ice",
+        "ice": "water_ice",
+        "halley_like_dust": "halley_dust",
+        "carbon_dioxide_ice": "co2_ice",
+        "iron_rich_olivine": "ir_olivine",
+        "iron_rich_pyroxene": "ir_pyroxene",
+        "iron_pyroxene": "ir_pyroxene"
     }
     composition = norm_comp.get(composition, composition)
 
@@ -208,11 +267,11 @@ def parse_dat_file(file_path: pathlib.Path) -> pd.DataFrame:
     # Data Cleaning (identical to parse_h5_file)
     df = df[df['S11'] > 1e-4].copy()
 
-    # Normalize S11 at 60 degrees to match synthetic .h5 conventions
+    # Normalize S11 at 30 degrees to match synthetic .h5 conventions
     try:
         # Finding the row closest to 60 degrees
-        idx_60 = (df['theta'] - 60 * np.pi / 180).abs().idxmin()
-        norm_val = df.loc[idx_60, 'S11']
+        idx_30 = (df['theta'] - 30 * np.pi / 180).abs().idxmin()
+        norm_val = df.loc[idx_30, 'S11']
         if norm_val != 0:
             # Re-scale both S11 and S12 by the same factor to preserve the ratio (polarization)
             df['S11'] = df['S11'] / norm_val
@@ -229,7 +288,18 @@ def parse_dat_file(file_path: pathlib.Path) -> pd.DataFrame:
     df['particle_count'] = particle_count
     df['composition'] = composition
 
-    return df
+    function_df = pd.DataFrame({
+      'refractive_index_real': [n],
+      'refractive_index_img': [k],
+      'particle_radius': size,
+      'particle_count': particle_count,
+      'composition': composition,
+      'theta': [df['theta'].to_numpy()],
+      'S11': [df['S11'].to_numpy()],
+      'polarization': [df['polarization'].to_numpy()]
+    })
+
+    return df, function_df
 
 def generate_data_plots(df: pd.DataFrame, output_dir: pathlib.Path):
     """
@@ -318,9 +388,11 @@ def parse_lab_file(file_path: pathlib.Path) -> pd.DataFrame:
     particle_count = float(count_match.group(1)) if count_match else 10000
 
     # 2. Locate the start of the data table
+    data_header = []
     start_idx = 0
     for i, line in enumerate(lines):
-        if line.strip().startswith('angle'):
+        if line.strip().startswith('angle') or line.strip().startswith('theta(deg)') or line.strip().startswith('Angle') or line.strip().startswith('theta'):
+            data_header = [str(p) for p in line.split()]
             start_idx = i + 1
             break
             
@@ -343,7 +415,7 @@ def parse_lab_file(file_path: pathlib.Path) -> pd.DataFrame:
     # S11 (normalized at 30 deg in these files)
     df['S11'] = df_raw.iloc[:, 1]
     # Polarization (-F12/F11)
-    df['polarization'] = df_raw.iloc[:, 3]
+    df['polarization'] = df_raw.iloc[:, data_header.index('-F12/F11')]
     # Reconstruct S12 element: polarization = -S12/S11 => S12 = -polarization * S11
     df['S12'] = - df['polarization'] * df['S11']
     
@@ -354,7 +426,18 @@ def parse_lab_file(file_path: pathlib.Path) -> pd.DataFrame:
     df['particle_count'] = particle_count
     df['composition'] = composition + "_lab" # Suffix to distinguish from synthetic data
 
-    return df
+    function_df = pd.DataFrame({
+      'refractive_index_real': [n],
+      'refractive_index_img': [k],
+      'particle_radius': radius,
+      'particle_count': particle_count,
+      'composition': composition + "_lab",
+      'theta': [df['theta'].to_numpy()],
+      'S11': [df['S11'].to_numpy()],
+      'polarization': [df['polarization'].to_numpy()]
+    })
+
+    return df, function_df
 
 def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") -> None:
     """
@@ -364,10 +447,12 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
     lab_path = raw_path / "lab_data"
     mstm_path = raw_path / "MSTM_data"
     fastmm_path = raw_path / "FASTMM_data"
+    fastmm_path = raw_path / "new_data"
     processed_path = pathlib.Path(processed_dir)
     processed_path.mkdir(parents=True, exist_ok=True)
 
     all_dfs = []
+    all_function_dfs = []
 
     # 1. Process synthetic (.h5) data
     print("Searching for synthetic (.h5) data...")
@@ -375,10 +460,12 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
     for file_path in h5_search_path.glob("*.h5"):
         print(f"  Processing {file_path.name}...")
         try:
-            df = parse_h5_file(file_path)
+            df, function_df = parse_h5_file(file_path)
             all_dfs.append(df)
+            all_function_dfs.append(function_df)
         except Exception as e:
             print(f"  Error processing {file_path}: {e}")
+            traceback.print_exc()
 
     # 2. Process MSTM (.dat) data
     print("\nSearching for MSTM (.dat) data...")
@@ -386,8 +473,9 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
         for file_path in mstm_path.glob("*.dat"):
             print(f"  Processing MSTM file: {file_path.name}...")
             try:
-                df = parse_dat_file(file_path)
+                df, function_df = parse_dat_file(file_path)
                 all_dfs.append(df)
+                all_function_dfs.append(function_df)
             except Exception as e:
                 print(f"  Error processing {file_path}: {e}")
     else:
@@ -399,8 +487,9 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
         for file_path in lab_path.glob("*.txt"):
             print(f"  Processing lab file: {file_path.name}...")
             try:
-                df = parse_lab_file(file_path)
+                df, function_df = parse_lab_file(file_path)
                 all_dfs.append(df)
+                all_function_dfs.append(function_df)
             except Exception as e:
                 print(f"  Error processing {file_path}: {e}")
     else:
@@ -410,16 +499,27 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
         print("\nNo data files found.")
         return
 
+
     # Consolidate everything into one large dataset
     combined_df = pd.concat(all_dfs, ignore_index=True)
+    combined_functions_df = pd.concat(all_function_dfs, ignore_index=True)
+
+    # used for testing r2 of param prediciton model when hard comps aren't there.
+    # Turns out it works really well without ice and water
+    # combined_df = combined_df[combined_df['composition'] != "water_ice"]
+    # combined_df = combined_df[combined_df['composition'] != "ice"]
     
     # Save to Parquet
     output_parquet = processed_path / "dust_data.parquet"
+    output_functions_parquet = processed_path / "dust_function_data.parquet"
     combined_df.to_parquet(output_parquet, engine="pyarrow")
+    combined_functions_df.to_parquet(output_functions_parquet, engine="pyarrow")
     
     # Save to CSV for inspection
     output_csv = processed_path / "dust_data.csv"
+    output_functions_csv = processed_path / "dust_function_data.csv"
     combined_df.to_csv(output_csv, index=False)
+    combined_functions_df.to_parquet(output_functions_csv, index=False)
 
     # Generate diagnostic plots
     print("\nGenerating diagnostic plots in data/processed/graphs...")
@@ -428,6 +528,7 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
     print(f"\nTotal rows loaded: {len(combined_df)}")
     print(f"Compositions found: {combined_df['composition'].unique()}")
     print(f"Data saved to {output_parquet}")
+
 
 if __name__ == "__main__":
     load_data()
