@@ -1,0 +1,263 @@
+# Cosmic Dust Scattering ANN — User Guide
+
+This guide provides instructions on how to use the Cosmic Dust Artificial Neural Network (ANN) models to predict light scattering properties of cosmic dust particles, understand the underlying training dataset, execute inference, and interpret evaluation metrics and diagnostic plots.
+
+---
+
+## 1. Overview & Physics Context
+
+When starlight traverses space, it scatters off cosmic dust grains. The angular distribution of this scattered light contains characteristic optical signatures governed by:
+1. **Size Parameter ($x$)**: The ratio of particle size to the light's wavelength ($x = \frac{2\pi r}{\lambda}$).
+2. **Complex Refractive Index ($m = n + ik$)**:
+   - Real part $n$: Dictates phase velocity and refractive light deflection.
+   - Imaginary part $k$: Dictates electromagnetic absorption over distance.
+3. **Internal Structure & Cluster Morphology**: Aggregate monomer count ($N$) and monomer radius ($r$).
+4. **Scattering Angle ($\theta$) and Phase Angle ($\alpha = \pi - \theta$)**: $\theta = 0^\circ$ is direct forward scattering; $\theta = 180^\circ$ ($\alpha = 0^\circ$) is backscattering.
+
+The models in this repository predict three fundamental optical quantities:
+- **$S_{11}(\theta)$ (Scattering Intensity)**: Total scattered intensity as a function of angle, normalized at $\theta = 30^\circ$.
+- **$S_{12}(\theta)$ (Cross-Polarization Matrix Element)**: The element of the Mueller scattering matrix governing linear polarization parallel and perpendicular to the scattering plane.
+- **$P(\theta)$ (Degree of Linear Polarization)**: The ratio of polarized intensity to total intensity:
+  $$P(\theta) = -\frac{S_{12}(\theta)}{S_{11}(\theta)}$$
+
+---
+
+## 2. Input Data Requirements
+
+To run inference with the trained models, you provide physical dust parameters.
+
+### Required Feature Table
+
+| Feature Name | Symbol / Formula | Unit | Typical Range in Dataset | Physical Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `theta` | $\theta$ | radians | $[0, \pi]$ ($0^\circ \text{ to } 180^\circ$) | Scattering angle |
+| `refractive_index_real` | $n$ | dimensionless | $1.30 \text{ to } 2.14$ | Real refractive index |
+| `refractive_index_img` | $k$ | dimensionless | $1.0 \times 10^{-8} \text{ to } 1.86$ | Imaginary refractive index (absorption) |
+| `particle_radius` | $r$ | $\mu\text{m}$ | $0.01 \text{ to } 1.50$ | Constituent monomer radius |
+| `particle_count` | $N$ | integer / float | $1 \text{ to } 64,000$ | Number of particles in aggregate cluster |
+| `wavelength` | $\lambda$ | $\mu\text{m}$ | Default: $0.65\ \mu\text{m}$ (red optical) | Incident illumination wavelength |
+
+### Derived Features Computed Automatically by Preprocessing
+
+During inference, raw inputs are transformed into engineered features:
+- **Trigonometric angles**: $\cos\theta$ and $\sin\theta$ (linearizes angle periodicity onto the unit circle).
+- **Logarithmic particle dimensions**: $\log_{10}(r + 10^{-9})$ and $\log_{10}(N + 10^{-9})$.
+- **Log-clipped absorption**:
+  $$\text{log\_refractive\_index\_img} = \operatorname{clip}\left(\log_{10}(k + 10^{-9}), -9.0, \infty\right)$$
+  *(Prevents runaway gradients on transparent materials while preserving distinction across 8 orders of magnitude down to $10^{-8}$)*.
+- **Size parameter**:
+  $$x = \frac{2\pi r}{\lambda}$$
+
+---
+
+## 3. Training Data Overview
+
+The models are trained on a unified multi-source dataset compiled into [`data/processed/dust_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_data.parquet) (24,881 pointwise records) and [`data/processed/dust_function_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_function_data.parquet).
+
+### Data Sources
+1. **FASTMM Simulation (`.h5`)**: Discrete-dipole approximation simulations of complex aggregate dust particles.
+2. **MSTM Simulation (`.dat`)**: Multiple Sphere T-Matrix code simulations covering wide angular grids and dense clusters.
+3. **Amsterdam-Granada Light Scattering Database (`.txt`)**: Experimental laboratory measurements of terrestrial and extraterrestrial dust analogs (suffixed with `_lab`).
+
+### All 25 Compositions Included in the Repository
+
+| Composition Identifier | Source Type | $n$ (Real) | $k$ (Imaginary) | Physical Material Representation |
+| :--- | :--- | :--- | :--- | :--- |
+| `am_carbon` | Synthetic / MSTM | $2.14$ | $0.805$ | Amorphous carbon / soot |
+| `am_silicate` | Synthetic / MSTM | $1.677$ | $0.0044$ | Amorphous silicate grains |
+| `water_ice` | Synthetic / MSTM | $1.308$ | $1.43 \times 10^{-7}$ | Pure water ice (nearly non-absorbing) |
+| `co2_ice` | Synthetic / MSTM | $1.41$ | $1.05 \times 10^{-6}$ | Dry ice / volatile frost |
+| `olivine` | Synthetic / MSTM | $1.743$ | $0.066$ | Silicate mineral $(\text{Mg, Fe})_2\text{SiO}_4$ |
+| `ir_olivine` | Synthetic / MSTM | $1.85$ | $0.00077$ | Iron-rich olivine |
+| `iron` | Synthetic | $1.85$ | $0.00077$ | Metallic iron dust analog |
+| `pyroxene` | Synthetic / MSTM | $1.702$ | $0.0212$ | Inosilicate mineral |
+| `ir_pyroxene` | Synthetic | $1.60$ | $0.001$ | Iron-bearing pyroxene |
+| `pyrrhotite` | Synthetic | $1.70$ | $1.86$ | Iron sulfide mineral ($\text{Fe}_{1-x}\text{S}$) |
+| `halley_dust` | Synthetic | $1.98$ | $0.48$ | Comet 1P/Halley dust analog |
+| `tholin_ice` | Synthetic | $1.54$ | $0.0012$ | Organic tholin-coated water ice |
+| `titan_tholins` | Synthetic | $1.557$ | $0.0009$ | Titan atmospheric organic aerosol analog |
+| `cosmic_organic_refractory` | Synthetic | $1.98$ | $0.2677$ | Complex interstellar carbonaceous refractory |
+| `ALLENDE_lab` | Laboratory | $1.65$ | $0.001$ | Allende CV3 carbonaceous chondrite meteorite |
+| `BASALT_lab` | Laboratory | $1.52$ | $0.001$ | Crushed basaltic silicate |
+| `Forsterite initial_lab` | Laboratory | $1.63$ | $1.0 \times 10^{-5}$ | Magnesium-endmember olivine ($\text{Mg}_2\text{SiO}_4$) |
+| `JSC0_lab` | Laboratory | $1.50$ | $0.001$ | NASA Johnson Space Center Mars regolith simulant |
+| `MONTMORILLONITE_lab` | Laboratory | $1.52$ | $0.0001$ | Smectite clay mineral analog |
+| `OLIVINE S_lab` | Laboratory | $1.62$ | $1.0 \times 10^{-5}$ | Natural olivine powder (small size sieve fraction) |
+| `OLIVINE M_lab` | Laboratory | $1.62$ | $1.0 \times 10^{-5}$ | Natural olivine powder (medium size sieve fraction) |
+| `OLIVINE L_lab` | Laboratory | $1.62$ | $1.0 \times 10^{-5}$ | Natural olivine powder (large size sieve fraction) |
+| `PALAGONITE_lab` | Laboratory | $1.50$ | $1.0 \times 10^{-5}$ | Weathered basaltic glass (Mars soil analog) |
+| `Sample 1_lab` | Laboratory | $1.70$ | $0.10$ | High-absorption laboratory mineral specimen |
+| `Sample 7_lab` | Laboratory | $1.76$ | $1.0 \times 10^{-8}$ | Low-absorption transparent mineral specimen |
+
+### Normalization and Noise Thresholds
+- **Normalized at $30^\circ$**: All intensity curves are normalized such that $S_{11}(30^\circ) = 1.0$. This unifies laboratory instruments and computer simulation scales without altering angular morphology.
+- **Low-Intensity Filter**: Data points where raw $S_{11} \le 10^{-4}$ are excluded during ingestion to prevent noisy division-by-zero artifacts in polarization calculations.
+
+---
+
+## 4. Running Model Predictions (Inference)
+
+Saved model weights and preprocessors reside in [`models/`](file:///home/maxmk/aetheria/models/) and [`data/processed/`](file:///home/maxmk/aetheria/data/processed/).
+
+### Available Model Artifacts
+- [`models/s11_model.joblib`](file:///home/maxmk/aetheria/models/s11_model.joblib): Scikit-Learn `MLPRegressor` for $\log_{10}(S_{11})$.
+- [`models/s12_model.joblib`](file:///home/maxmk/aetheria/models/s12_model.joblib): Scikit-Learn `MLPRegressor` with `tanh` activations for $\operatorname{arcsinh}(S_{12})$.
+- [`models/polarization_model.joblib`](file:///home/maxmk/aetheria/models/polarization_model.joblib): Scikit-Learn `MLPRegressor` for direct quantile-transformed polarization.
+- [`models/polarization_params_model.joblib`](file:///home/maxmk/aetheria/models/polarization_params_model.joblib): PyTorch/Skorch model predicting physical equation parameters $(b, c_1, c_2, a_0)$.
+- [`data/processed/feature_preprocessor.joblib`](file:///home/maxmk/aetheria/data/processed/feature_preprocessor.joblib): `ColumnTransformer` standard scaler for inputs.
+- [`data/processed/target_scaler.joblib`](file:///home/maxmk/aetheria/data/processed/target_scaler.joblib): `ColumnTransformer` (StandardScaler for $S_{11}, S_{12}$; QuantileTransformer for polarization).
+
+### Inference Example Code
+
+The following script runs inference across full scattering phase curves ($0^\circ \text{ to } 180^\circ$) using all 4 polarization methods:
+
+```python
+import numpy as np
+import pandas as pd
+import joblib
+import sys
+
+# 1. Ensure Skorch unpickler can resolve the PyTorch model architecture
+from src.train import MyRegressorModel, LossEquation
+sys.modules['__main__'].MyRegressorModel = MyRegressorModel
+sys.modules['__main__'].LossEquation = LossEquation
+
+# 2. Load trained models and transformers
+feature_preprocessor = joblib.load("data/processed/feature_preprocessor.joblib")
+target_transformer = joblib.load("data/processed/target_scaler.joblib")
+s11_model = joblib.load("models/s11_model.joblib")
+s12_model = joblib.load("models/s12_model.joblib")
+polarization_model = joblib.load("models/polarization_model.joblib")
+polarization_params_model = joblib.load("models/polarization_params_model.joblib")
+
+# 3. Define custom dust grain properties
+custom_dust = {
+    'refractive_index_real': 1.70,
+    'refractive_index_img': 0.02,
+    'particle_radius': 0.20,       # microns
+    'particle_count': 4000,
+    'wavelength': 0.65            # microns
+}
+
+# 4. Create angular sweep (0 to 180 degrees in 1-degree steps)
+angles_deg = np.linspace(0, 180, 181)
+angles_rad = np.radians(angles_deg)
+
+# 5. Prepare feature DataFrame
+input_df = pd.DataFrame({
+    'theta': angles_rad,
+    'cos_theta': np.cos(angles_rad),
+    'sin_theta': np.sin(angles_rad),
+    'refractive_index_real': custom_dust['refractive_index_real'],
+    'log_refractive_index_img': np.clip(np.log10(custom_dust['refractive_index_img'] + 1e-9), -9.0, None),
+    'log_particle_count': np.log10(custom_dust['particle_count'] + 1e-9),
+    'log_particle_radius': np.log10(custom_dust['particle_radius'] + 1e-9),
+    'size_parameter': (2 * np.pi * custom_dust['particle_radius']) / custom_dust['wavelength']
+})
+
+# 6. Transform features using saved scaler
+features_scaled = pd.DataFrame(
+    feature_preprocessor.transform(input_df),
+    columns=input_df.columns
+)
+
+# 7. Predict S11 (Scattering Intensity)
+scaled_log_s11 = s11_model.predict(features_scaled)
+dummy_matrix = np.column_stack([scaled_log_s11, np.zeros_like(scaled_log_s11)])
+unscaled_targets = target_transformer.named_transformers_['std'].inverse_transform(dummy_matrix[:, :2])
+pred_s11 = 10 ** (unscaled_targets[:, 0])
+
+# 8. Predict S12 (Cross-Polarization Element)
+scaled_arcsinh_s12 = s12_model.predict(features_scaled)
+dummy_matrix[:, 1] = scaled_arcsinh_s12
+unscaled_targets = target_transformer.named_transformers_['std'].inverse_transform(dummy_matrix[:, :2])
+pred_s12 = np.sinh(unscaled_targets[:, 1])
+
+# 9. Compute Polarization using All 4 Modeling Approaches:
+
+# Method A: Derived Polarization (Physical Ratio: -S12 / S11)
+pred_pol_derived = - pred_s12 / (pred_s11 + 1e-9)
+
+# Method B: Direct MLP Polarization
+scaled_pol = polarization_model.predict(features_scaled)
+pred_pol_mlp = target_transformer.named_transformers_['quant'].inverse_transform(
+    pd.DataFrame({'polarization': scaled_pol})
+).flatten()
+
+# Method C: Analytical Physical Equation Model
+material_vector = features_scaled[[
+    'refractive_index_real', 'log_refractive_index_img',
+    'log_particle_count', 'log_particle_radius', 'size_parameter'
+]].iloc[:1].to_numpy(dtype=np.float32).copy()
+
+params = polarization_params_model.predict(material_vector)[0]
+b, c1, c2, a0 = params
+
+# Phase angle alpha = pi - theta
+alpha = np.pi - angles_rad
+term1 = (np.abs(np.sin(alpha)) + 1e-7) ** c1
+term2 = (np.abs(np.cos(alpha / 2)) + 1e-7) ** c2
+term3 = np.sin((alpha - a0) / 2)
+pred_pol_eq = b * term1 * term2 * term3
+
+print(f"Predicted Equation Params: b={b:.3f}, c1={c1:.3f}, c2={c2:.3f}, a0={a0:.3f} rad ({np.degrees(a0):.1f} deg)")
+print(f"Peak Intensity S11(0 deg): {pred_s11[0]:.2e}")
+print(f"Peak Polarization: P_eq_max={pred_pol_eq.max():.3f}, P_mlp_max={pred_pol_mlp.max():.3f}")
+```
+
+---
+
+## 5. Polarization Modeling: Which Model Should You Use?
+
+The repository implements four distinct methods for evaluating linear polarization. Choose according to your scientific objective:
+
+| Method | Implementation | Strengths | Limitations | Recommended Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Analytical Equation Model** | PyTorch / Skorch parameter regressor | Strictly satisfies smooth optical behavior; zero non-physical oscillations; parameterized directly by physically meaningful exponents and crossover angle. | May under-fit complex secondary interference ripples of large dielectric aggregates. | **Primary recommendation** for astronomers seeking physically regularized curves and smooth phase curves. |
+| **Hybrid Fit Model** | Direct MLP + `scipy.optimize.curve_fit` | Retains flexible neural feature matching while enforcing analytic curve smoothing. | Computationally slower during batch evaluation due to iterative curve fitting. | Best for exploratory validation of unseen materials. |
+| **Derived Polarization** | Calculated as $-\frac{S_{12}}{S_{11}}$ | Mathematically faithful to the definition of the Stokes/Mueller polarization ratio. | Vulnerable to compounding prediction errors when $S_{11}$ is small. | Best when joint $S_{11}$ and $S_{12}$ consistency is required. |
+| **Direct MLP Regressor** | MLP predicting quantile-scaled polarization | Captures localized nonlinearities and sharp resonance peaks. | Can exhibit slight unphysical jaggedness or boundary extrapolation error. | Best for interpolation within well-represented training regimes. |
+
+---
+
+## 6. How to Read and Interpret Evaluation Outputs
+
+When running [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py), the script generates terminal metric summaries and visual plots in [`results/`](file:///home/maxmk/aetheria/results/).
+
+### 1. Terminal Metrics ($R^2$, MSE, MAE)
+- **Coefficient of Determination ($R^2$)**:
+  $$R^2 = 1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2}$$
+  - $R^2 = 1.0$: Perfect reproduction of ground-truth scattering.
+  - $R^2 > 0.90$: High-fidelity prediction.
+  - Negative $R^2$: The model performs worse than a simple horizontal average line (typically occurs on extreme holdouts where cross-composition extrapolation is tested).
+- **Aggregate vs. Per-Composition Scores**:
+  - **Aggregate $R^2$**: Evaluates variance across *all* materials and angles simultaneously. Because absolute intensity varies over orders of magnitude, aggregate $S_{11}$ $R^2$ is typically $> 0.98$.
+  - **Per-Composition $R^2$**: Evaluates how accurately the angular shape of an individual dust grain is reproduced. This is a much stricter and more honest benchmark for polarization.
+- **Handling Zero Variance**: If a material has constant polarization or too few samples, the script reports `N/A`.
+
+### 2. Generalizability & Holdout Benchmarks
+The pipeline includes a Holdout validation strategy.
+- **Any composition** in the dataset can be designated as the holdout composition in [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py) (e.g., `OLIVINE M_lab`, `Sample 7_lab`, `halley_dust`, etc.).
+- When evaluating the holdout set, the model is tested on a physical material it **never saw during training**.
+- Comparing **Test Set Score** (seen compositions, unseen particle geometries) vs. **Holdout Set Score** (unseen composition) reveals the true physical generalizability of the network.
+
+### 3. Visual Diagnostic Plots in `results/`
+Plots are organized into subdirectories under [`results/`](file:///home/maxmk/aetheria/results/):
+- **[`results/S11/`](file:///home/maxmk/aetheria/results/S11/)**: Displays $S_{11}(\theta)$ on a logarithmic y-axis vs. scattering angle ($0^\circ \text{ to } 180^\circ$). The green curve represents the ANN prediction, and red scatter points represent ground truth. Look for proper forward-scattering diffraction peaks ($\theta < 30^\circ$) and smooth backscattering slopes.
+- **[`results/S12/`](file:///home/maxmk/aetheria/results/S12/)**: Shows the cross-polarization element oscillating across zero. Dashed black lines indicate the zero axis ($S_{12} = 0$).
+- **[`results/polarization/`](file:///home/maxmk/aetheria/results/polarization/)**: Direct MLP polarization predictions vs. ground truth.
+- **[`results/derived_polarization/`](file:///home/maxmk/aetheria/results/derived_polarization/)**: Polarization reconstructed from $-S_{12}/S_{11}$. Tests whether intensity and polarization predictions maintain internal physical harmony.
+- **[`results/polarization_equation/`](file:///home/maxmk/aetheria/results/polarization_equation/)**: Cyan curve displays the analytical equation curve reconstructed from neural parameters $(b, c_1, c_2, a_0)$, compared against both ground truth points (red) and an empirical curve-fit (green).
+- **[`results/hybrid_polarization/`](file:///home/maxmk/aetheria/results/hybrid_polarization/)**: Displays the hybrid fit (blue) overlaid on the direct MLP prediction (orange dashed) and ground truth (red).
+
+---
+
+## 7. Quick Environment Verification & Testing
+
+To quickly verify that all datasets, scalers, and trained models are functioning properly in your local environment, run the automated test suite:
+
+```bash
+python3 -m unittest discover tests
+```
+
+This executes 4 automated tests verifying file availability, scaler integrity, model loading, and forward-pass inference.
