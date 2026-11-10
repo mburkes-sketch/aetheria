@@ -26,6 +26,14 @@ Here is how the pipeline operates, step-by-step:
 
 ## 1. Data Ingestion ([`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py))
 
+> [!NOTE]
+> The `data/` directory is not committed to GitHub ([`.gitignore`](file:///home/maxmk/aetheria/.gitignore)). When cloning the repository, only the minimal raw input structure needs to be created under `data/raw/`:
+> - `data/raw/FASTMM_data/`: HDF5 simulation files (`.h5`)
+> - `data/raw/MSTM_data/`: MSTM simulation files (`.dat`)
+> - `data/raw/lab_data/`: Experimental laboratory files (`.txt` with 4-line metadata header)
+>
+> Downstream directories (`data/processed/` and `data/features/`) are generated automatically by the pipeline.
+
 Before neural networks can learn, raw data from disparate instruments and simulation codes must be ingested and aligned to a unified schema:
 
 * **FASTMM Simulations (`.h5` files)**: Discrete-dipole simulations of complex cluster aggregates. Filenames encode metadata (e.g., `am_carbon_01size_8k_output.h5` $\implies$ $r = 0.1\ \mu\text{m}$, $N = 8,000$ particles, amorphous carbon).

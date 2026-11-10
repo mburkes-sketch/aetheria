@@ -61,6 +61,33 @@ flowchart TD
 
 The ingestion script [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) aggregates heterogeneous data from distinct optical simulations and experimental laboratories into a single standardized schema.
 
+### Minimal `/data` Directory Requirements (Git Exclusions)
+
+> [!IMPORTANT]
+> Because raw scattering simulation files and laboratory scans are large, the entire `data/` directory (along with `models/` and `results/`) is excluded from Git tracking via [`.gitignore`](file:///home/maxmk/aetheria/.gitignore).
+> When you clone the repository from GitHub, `data/` does **not** exist.
+
+To execute the data loader, you must provide the minimal input directory structure under `data/raw/`:
+
+```bash
+mkdir -p data/raw/FASTMM_data data/raw/MSTM_data data/raw/lab_data
+```
+
+```
+data/
+└── raw/
+    ├── FASTMM_data/         # FASTMM simulation files (.h5) [aliases: fastmm, fastmm_data]
+    ├── MSTM_data/           # MSTM simulation files (.dat)   [aliases: mstm, mstm_data]
+    └── lab_data/            # Amsterdam-Granada lab files (.txt) [aliases: lab, Lab_data]
+```
+
+#### What is Generated Automatically?
+You **do not** need to create the following directories; they are dynamically created by the pipeline scripts:
+- `data/processed/` & `data/processed/graphs/`: Created by [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) to store `dust_data.parquet`, `dust_function_data.parquet`, and diagnostic plots.
+- `data/features/`: Created by [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py) to store train/test/holdout Parquet datasets.
+- `models/`: Created by [`src/train.py`](file:///home/maxmk/aetheria/src/train.py) to store serialized neural networks (`.joblib`).
+- `results/`: Created by [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py) to store evaluation phase plots.
+
 ### File Parsing Implementations
 1. **FASTMM Simulation HDF5 Files ([`parse_h5_file`](file:///home/maxmk/aetheria/src/data_loader.py#L43))**:
    - *Structure*: Hierarchical HDF5 containing scattering matrices where rows/columns correspond to variables across angle steps of $0.5^\circ$.
@@ -280,10 +307,21 @@ python3 src/evaluate.py
 ```
 
 ### How to Add New Raw Data Files
-1. Place raw files into their corresponding folder:
-   - FASTMM `.h5`: `data/raw/FASTMM_data/` or `data/raw/new_data/`
-   - MSTM `.dat`: `data/raw/MSTM_data/`
-   - Lab `.txt`: `data/raw/lab_data/`
+1. Place raw files into their corresponding folder within the minimal `data/raw/` structure:
+   - **FASTMM `.h5`**: `data/raw/FASTMM_data/` (or `data/raw/new_data/`)
+     - Filename convention: `<composition>_<count>k_<size>size_..._output.h5` or `<composition>_<count>_<size>size_...ave.h5`.
+     - Monomer radius $r$ in microns (`01size` $\to 0.1\ \mu\text{m}$, `005size` $\to 0.05\ \mu\text{m}$) and count $N$ (`8k` $\to 8000$, `16384` $\to 16384$).
+   - **MSTM `.dat`**: `data/raw/MSTM_data/`
+     - Filename convention: `<composition>_<size_code>_<particle_count>.dat` (e.g. `iron_rich_pyroxene_64_16384.dat`).
+     - Contains 3+ columns: $\theta$ (deg), $S_{11}$, and linear polarization ratio $-\frac{S_{12}}{S_{11}}$.
+   - **Lab `.txt`**: `data/raw/lab_data/`
+     - Amsterdam-Granada format with mandatory 4-line metadata header:
+       ```text
+       [Composition Name] - [Wavelength]
+       refractive index: <real_n> + i<imag_k>
+       radius: <radius_in_microns>
+       particle count: <particle_count>
+       ```
 2. If adding a new synthetic material, update [`MAT_TO_REF_IND`](file:///home/maxmk/aetheria/src/data_loader.py#L17) in [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) with its complex refractive index $(n, k)$.
 3. Execute ingestion:
    ```bash

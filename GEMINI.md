@@ -11,6 +11,7 @@ light scattering features from dust composition, particle size, and phase angle.
 ## Repository Rules
 - Follow the established modular structure (`src/`, `data/`, `models/`).
 - Prioritize data reproducibility (save scalers in `data/processed/`).
+- Note that `/data`, `models/`, and `results/` are ignored in `.gitignore`. The minimal raw structure required for new clones is `data/raw/` containing `FASTMM_data/` (or `fastmm`), `MSTM_data/` (or `mstm`), and `lab_data/` (or `lab`).
 - Use LaTeX for any physics or mathematical formulas.
 
 ## Completed Milestones

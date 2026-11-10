@@ -444,10 +444,15 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
     Aggregates synthetic (.h5), MSTM (.dat), and lab (.txt) data into a single processed parquet file.
     """
     raw_path = pathlib.Path(raw_dir)
-    lab_path = raw_path / "lab_data"
-    mstm_path = raw_path / "MSTM_data"
-    fastmm_path = raw_path / "FASTMM_data"
-    fastmm_path = raw_path / "new_data"
+    # Support standard and alternative naming conventions for raw input folders
+    lab_candidates = [raw_path / "lab_data", raw_path / "lab", raw_path / "Lab_data"]
+    lab_path = next((p for p in lab_candidates if p.exists()), raw_path / "lab_data")
+
+    mstm_candidates = [raw_path / "MSTM_data", raw_path / "mstm", raw_path / "mstm_data", raw_path / "MSTM"]
+    mstm_path = next((p for p in mstm_candidates if p.exists()), raw_path / "MSTM_data")
+
+    fastmm_candidates = [raw_path / "FASTMM_data", raw_path / "fastmm", raw_path / "fastmm_data", raw_path / "new_data"]
+    fastmm_path = next((p for p in fastmm_candidates if p.exists()), raw_path / "FASTMM_data")
     processed_path = pathlib.Path(processed_dir)
     processed_path.mkdir(parents=True, exist_ok=True)
 
@@ -456,16 +461,32 @@ def load_data(raw_dir: str = "data/raw", processed_dir: str = "data/processed") 
 
     # 1. Process synthetic (.h5) data
     print("Searching for synthetic (.h5) data...")
-    h5_search_path = fastmm_path if fastmm_path.exists() else raw_path
-    for file_path in h5_search_path.glob("*.h5"):
-        print(f"  Processing {file_path.name}...")
-        try:
-            df, function_df = parse_h5_file(file_path)
-            all_dfs.append(df)
-            all_function_dfs.append(function_df)
-        except Exception as e:
-            print(f"  Error processing {file_path}: {e}")
-            traceback.print_exc()
+    h5_files = []
+    if fastmm_path.exists():
+        h5_files.extend(fastmm_path.glob("*.h5"))
+    # Also include new_data if present and distinct
+    new_data_path = raw_path / "new_data"
+    if new_data_path.exists() and new_data_path != fastmm_path:
+        existing_names = {f.name for f in h5_files}
+        for f in new_data_path.glob("*.h5"):
+            if f.name not in existing_names:
+                h5_files.append(f)
+    # Fallback to checking raw_path root if no subdirectories were found
+    if not h5_files and raw_path.exists():
+        h5_files.extend(raw_path.glob("*.h5"))
+
+    if h5_files:
+        for file_path in h5_files:
+            print(f"  Processing {file_path.name}...")
+            try:
+                df, function_df = parse_h5_file(file_path)
+                all_dfs.append(df)
+                all_function_dfs.append(function_df)
+            except Exception as e:
+                print(f"  Error processing {file_path}: {e}")
+                traceback.print_exc()
+    else:
+        print(f"  FASTMM data directory not found or empty: {fastmm_path}")
 
     # 2. Process MSTM (.dat) data
     print("\nSearching for MSTM (.dat) data...")
