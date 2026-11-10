@@ -59,12 +59,12 @@ flowchart TD
 
 ## 2. Step 1: Data Ingestion (`src/data_loader.py`)
 
-The ingestion script [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) aggregates heterogeneous data from distinct optical simulations and experimental laboratories into a single standardized schema.
+The ingestion script [`src/data_loader.py`](../src/data_loader.py) aggregates heterogeneous data from distinct optical simulations and experimental laboratories into a single standardized schema.
 
 ### Minimal `/data` Directory Requirements (Git Exclusions)
 
 > [!IMPORTANT]
-> Because raw scattering simulation files and laboratory scans are large, the entire `data/` directory (along with `models/` and `results/`) is excluded from Git tracking via [`.gitignore`](file:///home/maxmk/aetheria/.gitignore).
+> Because raw scattering simulation files and laboratory scans are large, the entire `data/` directory (along with `models/` and `results/`) is excluded from Git tracking via [`.gitignore`](../.gitignore).
 > When you clone the repository from GitHub, `data/` does **not** exist.
 
 To execute the data loader, you must provide the minimal input directory structure under `data/raw/`:
@@ -83,25 +83,25 @@ data/
 
 #### What is Generated Automatically?
 You **do not** need to create the following directories; they are dynamically created by the pipeline scripts:
-- `data/processed/` & `data/processed/graphs/`: Created by [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) to store `dust_data.parquet`, `dust_function_data.parquet`, and diagnostic plots.
-- `data/features/`: Created by [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py) to store train/test/holdout Parquet datasets.
-- `models/`: Created by [`src/train.py`](file:///home/maxmk/aetheria/src/train.py) to store serialized neural networks (`.joblib`).
-- `results/`: Created by [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py) to store evaluation phase plots.
+- `data/processed/` & `data/processed/graphs/`: Created by [`src/data_loader.py`](../src/data_loader.py) to store `dust_data.parquet`, `dust_function_data.parquet`, and diagnostic plots.
+- `data/features/`: Created by [`src/preprocessing.py`](../src/preprocessing.py) to store train/test/holdout Parquet datasets.
+- `models/`: Created by [`src/train.py`](../src/train.py) to store serialized neural networks (`.joblib`).
+- `results/`: Created by [`src/evaluate.py`](../src/evaluate.py) to store evaluation phase plots.
 
 ### File Parsing Implementations
-1. **FASTMM Simulation HDF5 Files ([`parse_h5_file`](file:///home/maxmk/aetheria/src/data_loader.py#L43))**:
+1. **FASTMM Simulation HDF5 Files ([`parse_h5_file`](../src/data_loader.py#L43))**:
    - *Structure*: Hierarchical HDF5 containing scattering matrices where rows/columns correspond to variables across angle steps of $0.5^\circ$.
    - *Filename Metadata*: Metadata is parsed from string naming conventions:
      - Example: `am_carbon_01size_8k_output.h5` $\rightarrow$ radius $r = 0.1\ \mu\text{m}$, particle count $N = 8000$, composition `am_carbon`.
    - *Composition Normalization*: Synonyms are standardized (e.g., `amorphous_carbon` and `amorphous__carbon` $\rightarrow$ `am_carbon`).
-2. **MSTM Simulation DAT Files ([`parse_dat_file`](file:///home/maxmk/aetheria/src/data_loader.py#L165))**:
+2. **MSTM Simulation DAT Files ([`parse_dat_file`](../src/data_loader.py#L165))**:
    - *Structure*: Handles both **headered** files (with scale factor blocks) and **headless** files (direct numerical tables).
    - *Complex Refractive Index Extraction*: When headers exist, refractive indices $(n, k)$ are extracted via regex:
      $$\text{ref index scale factors} \quad \rightarrow \quad n, k$$
-     Otherwise, it falls back to the [`MAT_TO_REF_IND`](file:///home/maxmk/aetheria/src/data_loader.py#L17) physical dictionary.
+     Otherwise, it falls back to the [`MAT_TO_REF_IND`](../src/data_loader.py#L17) physical dictionary.
    - *Column Mapping*: In MSTM, column 1 is scattering angle $\theta$ (converted from degrees to radians), column 2 is $S_{11}$, and column 3 is the linear polarization ratio $-\frac{S_{12}}{S_{11}}$. The physical element is reconstructed via:
      $$S_{12} = \left(\frac{S_{12}}{S_{11}}\right)_{\text{col3}} \cdot S_{11}$$
-3. **Amsterdam-Granada Experimental Lab Files ([`parse_lab_file`](file:///home/maxmk/aetheria/src/data_loader.py#L365))**:
+3. **Amsterdam-Granada Experimental Lab Files ([`parse_lab_file`](../src/data_loader.py#L365))**:
    - *Structure*: Text files containing experimental measurements of real mineral samples.
    - *Metadata Extraction*: Header blocks contain refractive indices, mean radius, and particle counts.
    - *Suffix Convention*: Compositions are suffixed with `_lab` (e.g., `olivine_m_lab`, `palagonite_lab`) to distinguish laboratory measurements from idealized synthetic computer models.
@@ -124,18 +124,18 @@ You **do not** need to create the following directories; they are dynamically cr
 - **Rationale**: Linear polarization is calculated as $P = -S_{12}/S_{11}$. When intensity approaches zero (deep minima or high absorption), floating-point errors and detector background noise in $S_{12}$ cause massive unphysical polarization spikes ($|P| \gg 1.0$), poisoning training gradients.
 
 #### C. Dual Output Structure
-[`load_data`](file:///home/maxmk/aetheria/src/data_loader.py#L442) produces two distinct artifacts in [`data/processed/`](file:///home/maxmk/aetheria/data/processed/):
+[`load_data`](../src/data_loader.py#L442) produces two distinct artifacts in [`data/processed/`](../data/processed/):
 - `dust_data.parquet`: Flattened, pointwise dataset where each row corresponds to an individual angular measurement $(\theta, S_{11}, S_{12}, P)$ with associated material features. Used by standard MLP regressors.
 - `dust_function_data.parquet`: Collapsed dataset where full angular vectors $(\vec{\theta}, \vec{S}_{11}, \vec{P})$ are stored as arrays per dust particle geometry. Used by the analytical equation model.
 
 #### D. Pre-Processing Diagnostic Verification
-[`generate_data_plots`](file:///home/maxmk/aetheria/src/data_loader.py#L304) immediately renders raw scatter curves for $S_{11}$, $S_{12}$, and $P$ per composition into `data/processed/graphs/`, enabling immediate visual inspection of raw data fidelity before downstream learning.
+[`generate_data_plots`](../src/data_loader.py#L304) immediately renders raw scatter curves for $S_{11}$, $S_{12}$, and $P$ per composition into `data/processed/graphs/`, enabling immediate visual inspection of raw data fidelity before downstream learning.
 
 ---
 
 ## 3. Step 2: Feature Engineering & Preprocessing (`src/preprocessing.py`)
 
-The preprocessing module [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py) converts raw physical measurements into features optimized for gradient-based neural network optimization.
+The preprocessing module [`src/preprocessing.py`](../src/preprocessing.py) converts raw physical measurements into features optimized for gradient-based neural network optimization.
 
 ### Feature Engineering Details
 
@@ -192,7 +192,7 @@ The preprocessing module [`src/preprocessing.py`](file:///home/maxmk/aetheria/sr
 2. **Targets**:
    - `log_S11` and `arcsinh_S12`: Scaled with `StandardScaler`.
    - `polarization`: Scaled with `QuantileTransformer(output_distribution='normal', n_quantiles=1000)`. Because polarization distributions are non-Gaussian and bounded within $[-1, 1]$ with high density near zero, quantile mapping linearizes the target space for the MLP.
-3. **Artifact Persistence**: Preprocessor scalers are persisted to [`data/processed/feature_preprocessor.joblib`](file:///home/maxmk/aetheria/data/processed/feature_preprocessor.joblib) and [`data/processed/target_scaler.joblib`](file:///home/maxmk/aetheria/data/processed/target_scaler.joblib).
+3. **Artifact Persistence**: Preprocessor scalers are persisted to [`data/processed/feature_preprocessor.joblib`](../data/processed/feature_preprocessor.joblib) and [`data/processed/target_scaler.joblib`](../data/processed/target_scaler.joblib).
 
 ### Curve-Grouped Preprocessing (`preprocess_data_param_model`)
 Collapses data by grouping identical material and particle parameters:
@@ -203,7 +203,7 @@ and aggregating $\vec{\theta}, \log_{10}\vec{S}_{11}, \vec{P}$ into lists. Array
 
 ## 4. Step 3: Model Architecture & Training (`src/train.py`)
 
-The training pipeline in [`src/train.py`](file:///home/maxmk/aetheria/src/train.py) implements four specialized models tailored to the distinct mathematical dynamics of intensity and polarization.
+The training pipeline in [`src/train.py`](../src/train.py) implements four specialized models tailored to the distinct mathematical dynamics of intensity and polarization.
 
 ### 1. Intensity Model ($S_{11}$)
 - **Architecture**: Scikit-Learn `MLPRegressor`
@@ -263,7 +263,7 @@ The loss is computed directly on the reconstructed curve against physical observ
 
 ## 5. Step 4: Evaluation & Visualization Suite (`src/evaluate.py`)
 
-The evaluation script [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py) computes quantitative benchmarks and renders comparative diagnostic plots.
+The evaluation script [`src/evaluate.py`](../src/evaluate.py) computes quantitative benchmarks and renders comparative diagnostic plots.
 
 ### Custom Inverse Transformation (`custom_inverse_transform`)
 Because inputs and targets use mixed scalers (`StandardScaler` for $S_{11}, S_{12}$ and `QuantileTransformer` for polarization), the script splits the prediction matrix, calls the respective `.inverse_transform()` method on each subset, and recombines them into physical coordinates.
@@ -274,15 +274,15 @@ Because inputs and targets use mixed scalers (`StandardScaler` for $S_{11}, S_{1
 - **Equation Model Metrics**: Computes aggregate $R^2$, MSE, MAE, plus per-curve mean, median, min, and max $R^2$ distributions.
 
 ### Polarization Modeling Comparison Workflows
-[`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py) evaluates four distinct polarization representations:
-1. **Direct MLP Prediction ([`predict_polarization_curve`](file:///home/maxmk/aetheria/src/evaluate.py#L506))**:
+[`src/evaluate.py`](../src/evaluate.py) evaluates four distinct polarization representations:
+1. **Direct MLP Prediction ([`predict_polarization_curve`](../src/evaluate.py#L506))**:
    Feeds full feature rows through the MLP regressor and inverts quantile scaling.
-2. **Derived Physical Polarization ([`predict_derived_polarization_curve`](file:///home/maxmk/aetheria/src/evaluate.py#L760))**:
+2. **Derived Physical Polarization ([`predict_derived_polarization_curve`](../src/evaluate.py#L760))**:
    Unscales $\hat{S}_{11} = 10^{\log_{10} S_{11}}$ and $\hat{S}_{12} = \sinh(\operatorname{arcsinh} S_{12})$, then evaluates:
    $$P_{\text{derived}} = -\frac{\hat{S}_{12}}{\hat{S}_{11} + 10^{-9}}$$
-3. **Analytical Equation Prediction ([`predict_polarization_curve_from_params`](file:///home/maxmk/aetheria/src/evaluate.py#L856))**:
-   Passes material vectors through [`MyRegressorModel`](file:///home/maxmk/aetheria/src/train.py#L19) to yield $(b, c_1, c_2, a_0)$, reconstructs the full curve across 181 angles, and compares against an empirical `scipy.optimize.curve_fit`.
-4. **Hybrid Curve-Fit ([`predict_hybrid_polarization_curve`](file:///home/maxmk/aetheria/src/evaluate.py#L968))**:
+3. **Analytical Equation Prediction ([`predict_polarization_curve_from_params`](../src/evaluate.py#L856))**:
+   Passes material vectors through [`MyRegressorModel`](../src/train.py#L19) to yield $(b, c_1, c_2, a_0)$, reconstructs the full curve across 181 angles, and compares against an empirical `scipy.optimize.curve_fit`.
+4. **Hybrid Curve-Fit ([`predict_hybrid_polarization_curve`](../src/evaluate.py#L968))**:
    Generates point predictions via the direct MLP, then applies `scipy.optimize.curve_fit` to find optimal $(b, c_1, c_2, a_0)$ values that smooth the MLP predictions into a physically continuous curve.
 
 ---
@@ -290,7 +290,7 @@ Because inputs and targets use mixed scalers (`StandardScaler` for $S_{11}, S_{1
 ## 6. How to Extend and Maintain the Pipeline
 
 ### How to Change the Holdout Composition
-To evaluate generalizability against a different composition, change `holdout_composition` in [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py):
+To evaluate generalizability against a different composition, change `holdout_composition` in [`src/preprocessing.py`](../src/preprocessing.py):
 ```python
 if __name__ == "__main__":
     # Choose ANY composition from the dataset:
@@ -322,12 +322,12 @@ python3 src/evaluate.py
        radius: <radius_in_microns>
        particle count: <particle_count>
        ```
-2. If adding a new synthetic material, update [`MAT_TO_REF_IND`](file:///home/maxmk/aetheria/src/data_loader.py#L17) in [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py) with its complex refractive index $(n, k)$.
+2. If adding a new synthetic material, update [`MAT_TO_REF_IND`](../src/data_loader.py#L17) in [`src/data_loader.py`](../src/data_loader.py) with its complex refractive index $(n, k)$.
 3. Execute ingestion:
    ```bash
    python3 src/data_loader.py
    ```
-4. Verify data fidelity by inspecting the new plots generated in [`data/processed/graphs/`](file:///home/maxmk/aetheria/data/processed/graphs/).
+4. Verify data fidelity by inspecting the new plots generated in [`data/processed/graphs/`](../data/processed/graphs/).
 
 ### Running Automated Verification Tests
 Run the test suite to verify pipeline data, preprocessors, models, and multi-model forward pass:
@@ -337,7 +337,7 @@ python3 -m unittest discover tests
 
 ### Developer Notes & Gotchas
 - **Skorch Pickling Resolution**:
-  Because [`MyRegressorModel`](file:///home/maxmk/aetheria/src/train.py#L14) and [`LossEquation`](file:///home/maxmk/aetheria/src/train.py#L69) are trained within `train.py`, Python pickles their module namespace as `__main__`. When loading `polarization_params_model.joblib` in an external script or notebook, ensure you register the classes into `sys.modules['__main__']` prior to loading:
+  Because [`MyRegressorModel`](../src/train.py#L14) and [`LossEquation`](../src/train.py#L69) are trained within `train.py`, Python pickles their module namespace as `__main__`. When loading `polarization_params_model.joblib` in an external script or notebook, ensure you register the classes into `sys.modules['__main__']` prior to loading:
   ```python
   from src.train import MyRegressorModel, LossEquation
   import sys

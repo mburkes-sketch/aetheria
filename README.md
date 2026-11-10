@@ -16,7 +16,7 @@ flowchart LR
 ```
 
 1. **Step 1: Understand the Physics & Goals**
-   - Read  **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**.
+   - Read  **[Conceptual Overview (What's Going On?)](docs/whats-going-on.md)**.
    - *Key takeaway:* We replace expensive numerical electrodynamics solvers (hours of compute) with neural surrogates that predict scattering curves in milliseconds.
 
 2. **Step 2: Set Up Environment & Minimal Data**
@@ -25,35 +25,35 @@ flowchart LR
    - Run the data pipeline and tests (`python3 -m unittest discover tests`).
 
 3. **Step 3: Try Out Inference**
-   - Open  **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)** and execute the ready-to-run Python snippet to generate phase curves for custom dust materials.
+   - Open  **[User Guide](docs/user_guide.md)** and execute the ready-to-run Python snippet to generate phase curves for custom dust materials.
 
 4. **Step 4: Explore Pipeline & Architecture**
-   - Review  **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)** before modifying ingestion, loss functions, or network architectures.
+   - Review  **[Developer & Pipeline Guide](docs/developer_guide.md)** before modifying ingestion, loss functions, or network architectures.
 
 ---
 
 ##  Documentation Index
 
-Detailed guides are located in the [`docs/`](file:///home/maxmk/aetheria/docs/) directory:
+Detailed guides are located in the [`docs/`](docs/) directory:
 
--  **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**:
+-  **[Conceptual Overview (What's Going On?)](docs/whats-going-on.md)**:
   - Intuitive physical motivation behind light scattering, Stokes parameters, and Mueller matrix elements.
   - High-level tour of the 4 pipeline stages.
   - Summary of the 4 polarization modeling methodologies.
 
--  **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)**:
+-  **[User Guide](docs/user_guide.md)**:
   - Physical feature definitions, units, and valid domains.
   - Comprehensive reference table of all 25 dataset compositions (synthetic & laboratory).
   - Standalone Python inference script demonstrating $S_{11}$, $S_{12}$, and all 4 polarization approaches.
   - Benchmark metrics interpretation ($R^2$, MSE, MAE) and guide to diagnostic plots in `results/`.
 
--  **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)**:
+-  **[Developer & Pipeline Guide](docs/developer_guide.md)**:
   - End-to-end Mermaid dataflow diagram from raw files to evaluated curves.
   - Detailed breakdown of each script:
-    - [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py): Multi-format ingestion (`.h5`, `.dat`, `.txt`), $30^\circ$ normalization, and noise thresholds ($S_{11} > 10^{-4}$).
-    - [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py): Size parameter $x = \frac{2\pi r}{\lambda}$, periodic angle features, log-clipped absorption, target IQR filtering, and holdout partitioning.
-    - [`src/train.py`](file:///home/maxmk/aetheria/src/train.py): ReLU and Tanh MLP regressors alongside PyTorch / Skorch bounded parameter network with custom masked and peak-penalized loss.
-    - [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py): Inverse transformations, aggregate vs. per-composition $R^2$, and automated generation of $0^\circ \text{--} 180^\circ$ phase curves.
+    - [`src/data_loader.py`](src/data_loader.py): Multi-format ingestion (`.h5`, `.dat`, `.txt`), $30^\circ$ normalization, and noise thresholds ($S_{11} > 10^{-4}$).
+    - [`src/preprocessing.py`](src/preprocessing.py): Size parameter $x = \frac{2\pi r}{\lambda}$, periodic angle features, log-clipped absorption, target IQR filtering, and holdout partitioning.
+    - [`src/train.py`](src/train.py): ReLU and Tanh MLP regressors alongside PyTorch / Skorch bounded parameter network with custom masked and peak-penalized loss.
+    - [`src/evaluate.py`](src/evaluate.py): Inverse transformations, aggregate vs. per-composition $R^2$, and automated generation of $0^\circ \text{--} 180^\circ$ phase curves.
   - Instructions for changing the holdout composition, adding new optical data, and running tests.
 
 ---
@@ -76,7 +76,7 @@ pip install -r requirements.txt
 ### 2. Minimal Data Directory Setup (`/data` is gitignored)
 
 > [!IMPORTANT]
-> The `data/` directory (along with `models/` and `results/`) is excluded from Git version control via [`.gitignore`](file:///home/maxmk/aetheria/.gitignore) due to large file sizes. A freshly cloned repository will **not** contain raw, processed, or trained model files.
+> The `data/` directory (along with `models/` and `results/`) is excluded from Git version control via [`.gitignore`](.gitignore) due to large file sizes. A freshly cloned repository will **not** contain raw, processed, or trained model files.
 
 To run the pipeline from scratch, you must provide raw data organized in the following minimal structure under `data/raw/`:
 
@@ -99,7 +99,7 @@ data/
    - **Filename convention**: Encodes composition, monomer size in $\mu\text{m}$, and monomer count $N$:
      - E.g., `am_carbon_16k_01size_64cpu_64ave_output.h5` ($r = 0.1\ \mu\text{m}$, $N = 16,000$, material `am_carbon`).
      - E.g., `olivine_1638_005size_64ave.h5` ($r = 0.05\ \mu\text{m}$, $N = 1,638$, material `olivine`).
-   - **Material mapping**: Material name in the filename must match or map to a key in [`MAT_TO_REF_IND`](file:///home/maxmk/aetheria/src/data_loader.py#L17) in [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py).
+   - **Material mapping**: Material name in the filename must match or map to a key in [`MAT_TO_REF_IND`](src/data_loader.py#L17) in [`src/data_loader.py`](src/data_loader.py).
    - **Internal layout**: The 2nd HDF5 key contains the scattering matrix with columns `[theta (rad), S11, S12, ...]`.
    *(Note: Subdirectory name `fastmm` is also accepted by the loader).*
 

@@ -1,7 +1,48 @@
-# Hide data
+# Bytecode and Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Large datasets, trained models, and generated plots
 data/
 results/
 models/
+*.h5
+*.parquet
+*.joblib
+*.pkl
+*.pt
+*.pth
 
-# Hide virtual env
+# Virtual environments and secrets
 .venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+*.env
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating system artifacts
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Testing, coverage, and notebooks
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# AI agent context rules
+GEMINI.md

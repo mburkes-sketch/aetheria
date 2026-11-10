@@ -52,12 +52,12 @@ During inference, raw inputs are transformed into engineered features:
 
 ## 3. Training Data Overview
 
-The models are trained on a unified multi-source dataset compiled into [`data/processed/dust_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_data.parquet) (24,881 pointwise records) and [`data/processed/dust_function_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_function_data.parquet).
+The models are trained on a unified multi-source dataset compiled into [`data/processed/dust_data.parquet`](../data/processed/dust_data.parquet) (24,881 pointwise records) and [`data/processed/dust_function_data.parquet`](../data/processed/dust_function_data.parquet).
 
 ### Minimal `/data` Directory Structure (`/data` is gitignored)
 
 > [!IMPORTANT]
-> The `data/` folder is excluded from Git via [`.gitignore`](file:///home/maxmk/aetheria/.gitignore). When cloning the repository, `data/` is not present. To build or retrain the dataset from scratch, populate the minimal input folder structure under `data/raw/`:
+> The `data/` folder is excluded from Git via [`.gitignore`](../.gitignore). When cloning the repository, `data/` is not present. To build or retrain the dataset from scratch, populate the minimal input folder structure under `data/raw/`:
 
 ```
 data/
@@ -122,15 +122,15 @@ All downstream folders (`data/processed/`, `data/features/`, `models/`, and `res
 
 ## 4. Running Model Predictions (Inference)
 
-Saved model weights and preprocessors reside in [`models/`](file:///home/maxmk/aetheria/models/) and [`data/processed/`](file:///home/maxmk/aetheria/data/processed/).
+Saved model weights and preprocessors reside in [`models/`](../models/) and [`data/processed/`](../data/processed/).
 
 ### Available Model Artifacts
-- [`models/s11_model.joblib`](file:///home/maxmk/aetheria/models/s11_model.joblib): Scikit-Learn `MLPRegressor` for $\log_{10}(S_{11})$.
-- [`models/s12_model.joblib`](file:///home/maxmk/aetheria/models/s12_model.joblib): Scikit-Learn `MLPRegressor` with `tanh` activations for $\operatorname{arcsinh}(S_{12})$.
-- [`models/polarization_model.joblib`](file:///home/maxmk/aetheria/models/polarization_model.joblib): Scikit-Learn `MLPRegressor` for direct quantile-transformed polarization.
-- [`models/polarization_params_model.joblib`](file:///home/maxmk/aetheria/models/polarization_params_model.joblib): PyTorch/Skorch model predicting physical equation parameters $(b, c_1, c_2, a_0)$.
-- [`data/processed/feature_preprocessor.joblib`](file:///home/maxmk/aetheria/data/processed/feature_preprocessor.joblib): `ColumnTransformer` standard scaler for inputs.
-- [`data/processed/target_scaler.joblib`](file:///home/maxmk/aetheria/data/processed/target_scaler.joblib): `ColumnTransformer` (StandardScaler for $S_{11}, S_{12}$; QuantileTransformer for polarization).
+- [`models/s11_model.joblib`](../models/s11_model.joblib): Scikit-Learn `MLPRegressor` for $\log_{10}(S_{11})$.
+- [`models/s12_model.joblib`](../models/s12_model.joblib): Scikit-Learn `MLPRegressor` with `tanh` activations for $\operatorname{arcsinh}(S_{12})$.
+- [`models/polarization_model.joblib`](../models/polarization_model.joblib): Scikit-Learn `MLPRegressor` for direct quantile-transformed polarization.
+- [`models/polarization_params_model.joblib`](../models/polarization_params_model.joblib): PyTorch/Skorch model predicting physical equation parameters $(b, c_1, c_2, a_0)$.
+- [`data/processed/feature_preprocessor.joblib`](../data/processed/feature_preprocessor.joblib): `ColumnTransformer` standard scaler for inputs.
+- [`data/processed/target_scaler.joblib`](../data/processed/target_scaler.joblib): `ColumnTransformer` (StandardScaler for $S_{11}, S_{12}$; QuantileTransformer for polarization).
 
 ### Inference Example Code
 
@@ -247,7 +247,7 @@ The repository implements four distinct methods for evaluating linear polarizati
 
 ## 6. How to Read and Interpret Evaluation Outputs
 
-When running [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py), the script generates terminal metric summaries and visual plots in [`results/`](file:///home/maxmk/aetheria/results/).
+When running [`src/evaluate.py`](../src/evaluate.py), the script generates terminal metric summaries and visual plots in [`results/`](../results/).
 
 ### 1. Terminal Metrics ($R^2$, MSE, MAE)
 - **Coefficient of Determination ($R^2$)**:
@@ -262,18 +262,18 @@ When running [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py), t
 
 ### 2. Generalizability & Holdout Benchmarks
 The pipeline includes a Holdout validation strategy.
-- **Any composition** in the dataset can be designated as the holdout composition in [`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py) (e.g., `OLIVINE M_lab`, `Sample 7_lab`, `halley_dust`, etc.).
+- **Any composition** in the dataset can be designated as the holdout composition in [`src/preprocessing.py`](../src/preprocessing.py) (e.g., `OLIVINE M_lab`, `Sample 7_lab`, `halley_dust`, etc.).
 - When evaluating the holdout set, the model is tested on a physical material it **never saw during training**.
 - Comparing **Test Set Score** (seen compositions, unseen particle geometries) vs. **Holdout Set Score** (unseen composition) reveals the true physical generalizability of the network.
 
 ### 3. Visual Diagnostic Plots in `results/`
-Plots are organized into subdirectories under [`results/`](file:///home/maxmk/aetheria/results/):
-- **[`results/S11/`](file:///home/maxmk/aetheria/results/S11/)**: Displays $S_{11}(\theta)$ on a logarithmic y-axis vs. scattering angle ($0^\circ \text{ to } 180^\circ$). The green curve represents the ANN prediction, and red scatter points represent ground truth. Look for proper forward-scattering diffraction peaks ($\theta < 30^\circ$) and smooth backscattering slopes.
-- **[`results/S12/`](file:///home/maxmk/aetheria/results/S12/)**: Shows the cross-polarization element oscillating across zero. Dashed black lines indicate the zero axis ($S_{12} = 0$).
-- **[`results/polarization/`](file:///home/maxmk/aetheria/results/polarization/)**: Direct MLP polarization predictions vs. ground truth.
-- **[`results/derived_polarization/`](file:///home/maxmk/aetheria/results/derived_polarization/)**: Polarization reconstructed from $-S_{12}/S_{11}$. Tests whether intensity and polarization predictions maintain internal physical harmony.
-- **[`results/polarization_equation/`](file:///home/maxmk/aetheria/results/polarization_equation/)**: Cyan curve displays the analytical equation curve reconstructed from neural parameters $(b, c_1, c_2, a_0)$, compared against both ground truth points (red) and an empirical curve-fit (green).
-- **[`results/hybrid_polarization/`](file:///home/maxmk/aetheria/results/hybrid_polarization/)**: Displays the hybrid fit (blue) overlaid on the direct MLP prediction (orange dashed) and ground truth (red).
+Plots are organized into subdirectories under [`results/`](../results/):
+- **[`results/S11/`](../results/S11/)**: Displays $S_{11}(\theta)$ on a logarithmic y-axis vs. scattering angle ($0^\circ \text{ to } 180^\circ$). The green curve represents the ANN prediction, and red scatter points represent ground truth. Look for proper forward-scattering diffraction peaks ($\theta < 30^\circ$) and smooth backscattering slopes.
+- **[`results/S12/`](../results/S12/)**: Shows the cross-polarization element oscillating across zero. Dashed black lines indicate the zero axis ($S_{12} = 0$).
+- **[`results/polarization/`](../results/polarization/)**: Direct MLP polarization predictions vs. ground truth.
+- **[`results/derived_polarization/`](../results/derived_polarization/)**: Polarization reconstructed from $-S_{12}/S_{11}$. Tests whether intensity and polarization predictions maintain internal physical harmony.
+- **[`results/polarization_equation/`](../results/polarization_equation/)**: Cyan curve displays the analytical equation curve reconstructed from neural parameters $(b, c_1, c_2, a_0)$, compared against both ground truth points (red) and an empirical curve-fit (green).
+- **[`results/hybrid_polarization/`](../results/hybrid_polarization/)**: Displays the hybrid fit (blue) overlaid on the direct MLP prediction (orange dashed) and ground truth (red).
 
 ---
 

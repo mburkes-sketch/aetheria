@@ -24,10 +24,10 @@ Here is how the pipeline operates, step-by-step:
 
 ---
 
-## 1. Data Ingestion ([`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py))
+## 1. Data Ingestion ([`src/data_loader.py`](../src/data_loader.py))
 
 > [!NOTE]
-> The `data/` directory is not committed to GitHub ([`.gitignore`](file:///home/maxmk/aetheria/.gitignore)). When cloning the repository, only the minimal raw input structure needs to be created under `data/raw/`:
+> The `data/` directory is not committed to GitHub ([`.gitignore`](../.gitignore)). When cloning the repository, only the minimal raw input structure needs to be created under `data/raw/`:
 > - `data/raw/FASTMM_data/`: HDF5 simulation files (`.h5`)
 > - `data/raw/MSTM_data/`: MSTM simulation files (`.dat`)
 > - `data/raw/lab_data/`: Experimental laboratory files (`.txt` with 4-line metadata header)
@@ -47,13 +47,13 @@ Before neural networks can learn, raw data from disparate instruments and simula
    $$P(\theta) = -\frac{S_{12}'(\theta)}{S_{11}'(\theta)} = -\frac{S_{12}(\theta)}{S_{11}(\theta)}$$
 2. **Filtering Low-Intensity Noise**: At high scattering angles or strong absorption, light intensity $S_{11}$ can drop near zero. Computing polarization involves dividing by $S_{11}$; when $S_{11} \le 10^{-4}$, numerical noise or detector limits cause extreme, unphysical polarization spikes ($|P| \gg 1.0$). Points with $S_{11} \le 10^{-4}$ are filtered out during ingestion.
 3. **Dual Dataset Output**:
-   - [`data/processed/dust_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_data.parquet): Pointwise table for standard angle-by-angle MLP models.
-   - [`data/processed/dust_function_data.parquet`](file:///home/maxmk/aetheria/data/processed/dust_function_data.parquet): Grouped table containing full angular vectors per dust geometry for sequence and parameter regression.
-4. **Diagnostic Verification Plots**: Automatically generates raw scatter plots for each material into [`data/processed/graphs/`](file:///home/maxmk/aetheria/data/processed/graphs/) to visually verify data fidelity prior to preprocessing.
+   - [`data/processed/dust_data.parquet`](../data/processed/dust_data.parquet): Pointwise table for standard angle-by-angle MLP models.
+   - [`data/processed/dust_function_data.parquet`](../data/processed/dust_function_data.parquet): Grouped table containing full angular vectors per dust geometry for sequence and parameter regression.
+4. **Diagnostic Verification Plots**: Automatically generates raw scatter plots for each material into [`data/processed/graphs/`](../data/processed/graphs/) to visually verify data fidelity prior to preprocessing.
 
 ---
 
-## 2. Feature Engineering & Preprocessing ([`src/preprocessing.py`](file:///home/maxmk/aetheria/src/preprocessing.py))
+## 2. Feature Engineering & Preprocessing ([`src/preprocessing.py`](../src/preprocessing.py))
 
 Raw physical numbers vary across dozens of orders of magnitude and non-linear physical regimes. This script engineers physics-informed features tailored for neural networks:
 
@@ -76,7 +76,7 @@ Raw physical numbers vary across dozens of orders of magnitude and non-linear ph
 
 ---
 
-## 3. Model Architecture & Training ([`src/train.py`](file:///home/maxmk/aetheria/src/train.py))
+## 3. Model Architecture & Training ([`src/train.py`](../src/train.py))
 
 Rather than using a single monolithic network, the repository trains **four specialized neural networks**, each architected for the specific mathematical dynamics of light scattering:
 
@@ -103,9 +103,9 @@ Rather than using a single monolithic network, the repository trains **four spec
 
 ---
 
-## 4. Evaluation & Visualization Suite ([`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py))
+## 4. Evaluation & Visualization Suite ([`src/evaluate.py`](../src/evaluate.py))
 
-To verify that predictions adhere to optical physics, [`src/evaluate.py`](file:///home/maxmk/aetheria/src/evaluate.py) computes quantitative benchmarks ($R^2$, MSE, MAE) and generates comparative phase curves across full angular sweeps ($0^\circ \text{ to } 180^\circ$):
+To verify that predictions adhere to optical physics, [`src/evaluate.py`](../src/evaluate.py) computes quantitative benchmarks ($R^2$, MSE, MAE) and generates comparative phase curves across full angular sweeps ($0^\circ \text{ to } 180^\circ$):
 
 ### Four Distinct Polarization Evaluation Workflows:
 1. **Direct MLP Model**: Evaluates point-by-point neural predictions.
@@ -115,9 +115,9 @@ To verify that predictions adhere to optical physics, [`src/evaluate.py`](file:/
 
 ### Diagnostic Visualizations in `results/`:
 The evaluation suite saves comparison plots into organized subdirectories:
-- [`results/S11/`](file:///home/maxmk/aetheria/results/S11/): Log-scaled scattering intensity vs. phase angle.
-- [`results/S12/`](file:///home/maxmk/aetheria/results/S12/): Cross-polarization element oscillating across zero.
-- [`results/polarization/`](file:///home/maxmk/aetheria/results/polarization/): Direct MLP polarization curves vs. ground truth.
-- [`results/derived_polarization/`](file:///home/maxmk/aetheria/results/derived_polarization/): Derived ratio $-S_{12}/S_{11}$ vs. ground truth.
-- [`results/polarization_equation/`](file:///home/maxmk/aetheria/results/polarization_equation/): Analytical equation curves reconstructed from neural parameters $(b, c_1, c_2, a_0)$.
-- [`results/hybrid_polarization/`](file:///home/maxmk/aetheria/results/hybrid_polarization/): Hybrid smoothed curves overlaid on direct MLP predictions and observations.
+- [`results/S11/`](../results/S11/): Log-scaled scattering intensity vs. phase angle.
+- [`results/S12/`](../results/S12/): Cross-polarization element oscillating across zero.
+- [`results/polarization/`](../results/polarization/): Direct MLP polarization curves vs. ground truth.
+- [`results/derived_polarization/`](../results/derived_polarization/): Derived ratio $-S_{12}/S_{11}$ vs. ground truth.
+- [`results/polarization_equation/`](../results/polarization_equation/): Analytical equation curves reconstructed from neural parameters $(b, c_1, c_2, a_0)$.
+- [`results/hybrid_polarization/`](../results/hybrid_polarization/): Hybrid smoothed curves overlaid on direct MLP predictions and observations.
