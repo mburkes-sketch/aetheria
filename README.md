@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 Onboarding Roadmap for New Contributors
+##  Onboarding Roadmap for New Contributors
 
 Welcome to the team! If you are new to the project, here is the recommended reading and setup order to get up to speed in under 30 minutes:
 
@@ -16,7 +16,7 @@ flowchart LR
 ```
 
 1. **Step 1: Understand the Physics & Goals**
-   - Read 💡 **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**.
+   - Read  **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**.
    - *Key takeaway:* We replace expensive numerical electrodynamics solvers (hours of compute) with neural surrogates that predict scattering curves in milliseconds.
 
 2. **Step 2: Set Up Environment & Verify Installation**
@@ -24,29 +24,29 @@ flowchart LR
    - Run `python3 -m unittest discover tests` to verify all processed data, scalers, and models work out of the box.
 
 3. **Step 3: Try Out Inference**
-   - Open 📖 **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)** and execute the ready-to-run Python snippet to generate phase curves for custom dust materials.
+   - Open  **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)** and execute the ready-to-run Python snippet to generate phase curves for custom dust materials.
 
 4. **Step 4: Explore Pipeline & Architecture**
-   - Review 🛠️ **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)** before modifying ingestion, loss functions, or network architectures.
+   - Review  **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)** before modifying ingestion, loss functions, or network architectures.
 
 ---
 
-## 📚 Documentation Index
+##  Documentation Index
 
 Detailed guides are located in the [`docs/`](file:///home/maxmk/aetheria/docs/) directory:
 
-- 💡 **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**:
+-  **[Conceptual Overview (What's Going On?)](file:///home/maxmk/aetheria/docs/whats-going-on.md)**:
   - Intuitive physical motivation behind light scattering, Stokes parameters, and Mueller matrix elements.
   - High-level tour of the 4 pipeline stages.
   - Summary of the 4 polarization modeling methodologies.
 
-- 📖 **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)**:
+-  **[User Guide](file:///home/maxmk/aetheria/docs/user_guide.md)**:
   - Physical feature definitions, units, and valid domains.
   - Comprehensive reference table of all 25 dataset compositions (synthetic & laboratory).
   - Standalone Python inference script demonstrating $S_{11}$, $S_{12}$, and all 4 polarization approaches.
   - Benchmark metrics interpretation ($R^2$, MSE, MAE) and guide to diagnostic plots in `results/`.
 
-- 🛠️ **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)**:
+-  **[Developer & Pipeline Guide](file:///home/maxmk/aetheria/docs/developer_guide.md)**:
   - End-to-end Mermaid dataflow diagram from raw files to evaluated curves.
   - Detailed breakdown of each script:
     - [`src/data_loader.py`](file:///home/maxmk/aetheria/src/data_loader.py): Multi-format ingestion (`.h5`, `.dat`, `.txt`), $30^\circ$ normalization, and noise thresholds ($S_{11} > 10^{-4}$).
@@ -57,7 +57,7 @@ Detailed guides are located in the [`docs/`](file:///home/maxmk/aetheria/docs/) 
 
 ---
 
-## ⚡ Quick Start
+##  Quick Start
 
 ### 1. Prerequisites & Environment Setup
 
@@ -101,7 +101,7 @@ python3 src/evaluate.py
 
 ---
 
-## 🔬 Four Polarization Modeling Approaches
+##  Four Polarization Modeling Approaches
 
 Because linear polarization ($P = -S_{12}/S_{11}$) is sensitive to complex wave interference and material absorption, Aetheria implements four complementary modeling strategies:
 
@@ -112,11 +112,17 @@ Because linear polarization ($P = -S_{12}/S_{11}$) is sensitive to complex wave 
 
 ---
 
-## 📁 Repository Structure
+##  Repository Structure
 
 ```
 ├── data/
 │   ├── raw/                 # Heterogeneous FASTMM (.h5), MSTM (.dat), and lab (.txt) data
+|       ├── FASTMM_data/     # FASTMM synthetic data stored in .h5 files    
+|       ├── MSTM_data/       # MSTM synthetic data stored in .dat files        
+|       ├── lab_data         # Lab data from Grenada-Amsterdam database stored in .txt files
+                             # The 2nd, 3rd, and 4th lines of the .txt file need to be
+                             # refractive index, particle radius, and particle count, respectively
+                             # These get added to the base .txt file from Grenada-Amsterdam
 │   ├── processed/           # Standardized Parquet files, scalers, and diagnostic graphs
 │   └── features/            # Preprocessed train, test, and holdout split datasets
 ├── docs/
